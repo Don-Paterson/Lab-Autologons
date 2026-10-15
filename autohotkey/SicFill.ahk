@@ -3,7 +3,8 @@
 
 ; ---------------------------------------------------------------------------
 ; SIC Autofill for Check Point SmartConsole (+ optional MobaXterm hotkeys)
-;   - Auto-fills Activation Key / Confirm Activation Key when the dialog appears
+;   - Auto-fills Activation Key / Confirm Activation Key (VSX wizard, cluster
+;     Member Properties) and the One-time password (Trusted Communication)
 ;   - Auto-fills the cpadmin password in the SmartConsole login window
 ;   - Ctrl+Alt+S  in SmartConsole : re-fill SIC key (e.g. after Reset)
 ;   - Ctrl+Alt+S  in MobaXterm    : type SIC key + Enter
@@ -42,10 +43,16 @@ if AdminPw = "" {
     AdminPw := ib2.Result = "OK" ? ib2.Value : ""
 }
 
-; [window, Activation Key control, Confirm control]  (from Window Spy)
+; Window titles are matched as regular expressions, so "^...$" means the
+; whole title. ("Cluster Member Properties - A-VSX-02" must NOT match.)
+SetTitleMatchMode "RegEx"
+
+; [window, label that must be visible, key control, confirm control or ""]
+; (controls from Window Spy)
 Targets := [
-    ["VSX Gateway Wizard ahk_exe SmartConsole.exe", "Edit4", "Edit5"],
-    ["Member Properties ahk_exe SmartConsole.exe",  "Edit4", "Edit5"],
+    ["^VSX Gateway Wizard$ ahk_exe SmartConsole.exe",    "Activation Key",    "Edit4", "Edit5"],
+    ["^Member Properties$ ahk_exe SmartConsole.exe",     "Activation Key",    "Edit4", "Edit5"],
+    ["^Trusted Communication$ ahk_exe SmartConsole.exe", "One-time password", "Edit1", ""],
 ]
 
 Filled := Map()          ; windows already filled, so we don't keep re-filling
@@ -57,10 +64,14 @@ CheckSic() {
         if !(hwnd := WinActive(t[1])) || Filled.Has(hwnd)
             continue
         try {
-            ; The wizard keeps every page loaded; only act on the SIC page
-            if !ControlGetVisible(t[2], hwnd)
+            ; The wizard keeps every page loaded, so the label must actually be
+            ; showing, and the box must be usable (not greyed out by an
+            ; established trust).
+            if !LabelVisible(hwnd, t[2])
                 continue
-            FillSic(hwnd, t[2], t[3])
+            if !ControlGetVisible(t[3], hwnd) || !ControlGetEnabled(t[3], hwnd)
+                continue
+            FillSic(hwnd, t[3], t[4])
         }
     }
     ; Forget windows that have closed
@@ -71,7 +82,7 @@ CheckSic() {
 
 ; --- SmartConsole login window ---------------------------------------------
 ; WPF window (no ClassNN controls), so click the Password box by position.
-LoginTitle := "Check Point SmartConsole ahk_exe SmartConsole.exe"
+LoginTitle := "^Check Point SmartConsole ahk_exe SmartConsole.exe"
 LoginPwX := 448, LoginPwY := 108   ; Password box, window coords (Window Spy)
 AutoLogin := false                 ; true = also press Enter to log in
 SetTimer CheckLogin, 500
@@ -101,7 +112,7 @@ CheckLogin() {
 SetTimer CheckTtlPw, 300
 
 CheckTtlPw() {
-    if AdminPw = "" || !(hwnd := WinActive("vsx_util ahk_exe ttpmacro.exe")) || Filled.Has(hwnd)
+    if AdminPw = "" || !(hwnd := WinActive("^vsx_util$ ahk_exe ttpmacro.exe")) || Filled.Has(hwnd)
         return
     Filled[hwnd] := true
     try {
@@ -110,9 +121,19 @@ CheckTtlPw() {
     }
 }
 
+; True if a visible text label in the window contains the given text.
+LabelVisible(hwnd, text) {
+    for ctl in WinGetControls(hwnd)
+        if InStr(ctl, "Static") && ControlGetVisible(ctl, hwnd)
+            && InStr(ControlGetText(ctl, hwnd), text)
+            return true
+    return false
+}
+
 FillSic(hwnd, keyCtl, confCtl) {
     ControlSetText SicKey, keyCtl, hwnd
-    ControlSetText SicKey, confCtl, hwnd
+    if confCtl != ""
+        ControlSetText SicKey, confCtl, hwnd
     Filled[hwnd] := true
     ToolTip "SIC key filled"
     SetTimer () => ToolTip(), -1500
@@ -122,7 +143,7 @@ FillSic(hwnd, keyCtl, confCtl) {
 ^!s:: {
     for t in Targets
         if hwnd := WinActive(t[1])
-            try FillSic(hwnd, t[2], t[3])
+            try FillSic(hwnd, t[3], t[4])
 }
 #HotIf
 

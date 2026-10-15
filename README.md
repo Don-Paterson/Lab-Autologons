@@ -7,6 +7,7 @@ lab Windows machine with one command.
 |---|---|
 | SmartConsole login | cpadmin password |
 | SmartConsole VSX Gateway / Cluster wizards | SIC Activation Key + Confirm |
+| SmartConsole gateway *Trusted Communication* | One-time password (SIC key) |
 | `vsx_util` (any command) | SMS IP (localhost), `cpadmin`, password, Activation Key |
 | `vsx_provisioning_tool` | password (`-p`), from a command file |
 | `cpconfig` on a gateway (SIC reset) | expert password, Activation Key + Retype |
@@ -93,9 +94,12 @@ The password goes over the SSH session's input, not the command line.
 
 Runs in the tray (green **H**). It reads the passwords from Credential Manager.
 
-* **SmartConsole**: fills the login password, and the SIC Activation Key in the
-  VSX Gateway Wizard and Cluster *Member Properties* dialogs. **Ctrl+Alt+S**
-  re-fills after **Reset**.
+* **SmartConsole**: fills the login password, the SIC Activation Key in the
+  VSX Gateway Wizard and Cluster *Member Properties* dialogs, and the
+  One-time password in a gateway's *Trusted Communication* dialog. It only
+  fills when that label is showing and the box is usable, so existing objects
+  (e.g. *Cluster Member Properties - A-VSX-02*) are left alone.
+  **Ctrl+Alt+S** re-fills after **Reset**.
 * **MobaXterm / Tera Term**: **Ctrl+Alt+P** cpadmin password, **Ctrl+Alt+S**
   SIC key, **Ctrl+Alt+V** answers the `vsx_util` login prompts.
 
