@@ -9,6 +9,7 @@ lab Windows machine with one command.
 | SmartConsole VSX Gateway / Cluster wizards | SIC Activation Key + Confirm |
 | `vsx_util` (any command) | SMS IP (localhost), `cpadmin`, password, Activation Key |
 | `vsx_provisioning_tool` | password (`-p`), from a command file |
+| `cpconfig` on a gateway (SIC reset) | expert password, Activation Key + Retype |
 | MobaXterm / Tera Term | hotkeys for password, SIC key and `vsx_util` login |
 
 ## Deploy to a new lab machine
@@ -26,7 +27,7 @@ password). The script then:
 1. Downloads this repo to `C:\LabAutologons`
 2. Installs Python 3.13 (if missing) plus `paramiko` and `pywin32-ctypes`
 3. Installs AutoHotkey v2 (if missing; falls back to the portable zip)
-4. Adds `C:\LabAutologons\bin` to PATH: `vsx`, `vsx-prov`, `lab-creds`
+4. Adds `C:\LabAutologons\bin` to PATH: `vsx`, `vsx-prov`, `cprun`, `lab-creds`
 5. Saves the passwords in **Windows Credential Manager**
 6. Starts `SicFill.ahk` now and adds it to Startup
 
@@ -65,6 +66,9 @@ vsx vsls --host 10.1.1.101     # other SMS
 vsx-prov -f C:\LabAutologons\examples\a-app-gw.txt
 vsx-prov -y -f my-vs.txt       # no "Run this?" confirmation
 
+cprun 10.1.1.2 cpconfig        # reset SIC on a gateway (you pick the menu option)
+cprun 10.1.1.2                 # just log in, straight to Expert mode
+
 lab-creds show                 # which passwords are saved
 lab-creds set                  # change them
 lab-creds clear                # remove them
@@ -73,6 +77,13 @@ lab-creds clear                # remove them
 `vsx` connects over SSH as `admin` (SSH key if you have one, otherwise the
 saved Gaia password), runs `vsx_util`, answers the login prompts, then hands
 the session to you. The output looks the same as typing it by hand.
+
+`cprun` works on any Gaia box. It logs in as `admin`; if that lands in clish it
+types `expert` and the expert password (the saved Gaia password, or
+`Lab-Autologons:EXPERT_PW` if you save one with that name). It then runs the
+command, answers `Enter/Retype Activation Key` with the saved SIC key (and the
+`vsx_util` login prompts, if the command is `vsx_util`), and closes when the
+command finishes. Menus and y/n questions are left to you.
 
 `vsx-prov` takes one transaction per line (see `examples/a-app-gw.txt`) and runs
 `vsx_provisioning_tool -s localhost -u cpadmin -p ... -o <lines joined with ", ">`.
