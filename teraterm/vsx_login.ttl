@@ -1,0 +1,29 @@
+; vsx_login.ttl - answer vsx_util's login prompts.
+; At the Expert prompt, type the command WITHOUT pressing Enter, e.g.
+;     vsx_util show_interfaces
+; then run Control > Macro > vsx_login.ttl. The macro presses Enter for you.
+
+timeout = 30
+
+passwordbox 'cpadmin password:' 'vsx_util'
+pw = inputstr
+
+sendln ''                       ; run the command already typed on the line
+
+wait 'localhost'
+if result = 0 goto timedout
+sendln ''                       ; server IP -> localhost
+
+wait 'Administrator Name:'
+if result = 0 goto timedout
+sendln 'cpadmin'
+
+wait 'Administrator Password:'
+if result = 0 goto timedout
+sendln pw
+
+end
+
+:timedout
+messagebox 'Did not see the expected vsx_util prompt.' 'vsx_util'
+end
