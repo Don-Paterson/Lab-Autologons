@@ -10,7 +10,7 @@ lab Windows machine with one command.
 | SmartConsole gateway *Trusted Communication* | One-time password (SIC key) |
 | `vsx_util` (any command) | SMS IP (localhost), `cpadmin`, password, Activation Key |
 | `vsx_provisioning_tool` | password (`-p`), from a command file |
-| `cpconfig` on a gateway (SIC reset) | expert password, Activation Key + Retype |
+| `cpconfig` / `reset_gw` on a gateway (SIC reset) | expert password, Activation Key + Retype |
 | Ubuntu / Linux servers (`ubrun`) | SSH login as cpadmin, `sudo` password |
 | MobaXterm / Tera Term | hotkeys for password, SIC key and `vsx_util` login |
 
@@ -71,6 +71,7 @@ vsx-prov -y -f my-vs.txt       # no "Run this?" confirmation
 
 cprun 10.1.1.2 cpconfig        # reset SIC on a gateway (you pick the menu option)
 cprun 10.1.1.2                 # just log in, straight to Expert mode
+cprun 10.1.1.1 reset_gw        # reset a gateway: you answer y, the keys are typed
 cprun 10.1.1.2 -f check.sh a b # upload check.sh, run it in Expert mode (args a b)
 
 ubrun 192.168.13.101 sudo apt update   # Ubuntu: sudo password typed for you
@@ -97,7 +98,8 @@ is still waiting and no answer is left, `vsx` gives up after `--wait` seconds
 `cprun` works on any Gaia box. It logs in as `admin`; if that lands in clish it
 types `expert` and the expert password (the saved Gaia password, or
 `Lab-Autologons:EXPERT_PW` if you save one with that name). It then runs the
-command, answers `Enter/Retype Activation Key` with the saved SIC key (and the
+command, answers any prompt ending in `Activation Key:` (cpconfig's
+`Enter/Retype`, reset_gw's `Enter new`) with the saved SIC key (and the
 `vsx_util` login prompts, if the command is `vsx_util`), and closes when the
 command finishes. Menus and y/n questions are left to you.
 

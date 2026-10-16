@@ -8,16 +8,17 @@ vsx.py - run vsx_util on A-SMS over SSH and answer its login prompts.
 
 SSH login:   SSH key if you have one, otherwise the Gaia admin password.
 Passwords:   Windows Credential Manager (see labcreds.py), else asked.
-Also answers "Enter/Retype Activation Key" with the saved SIC key.
+Also answers any "... Activation Key:" prompt (Enter / Retype / Enter new)
+with the saved SIC key.
 After the login prompts are answered you drive vsx_util as normal.
 Needs:  py -m pip install paramiko pywin32-ctypes
 """
-import argparse, os, queue, shlex, shutil, socket, sys, threading, time
+import argparse, os, queue, re, shlex, shutil, socket, sys, threading, time
 
 import paramiko
 
 from labcreds import load, secret
-from termclean import Cleaner
+from termclean import SEQ, Cleaner
 
 def connect(host, user, port, pw_name="SMS_SSH_PW"):
     """SSH key first, then the saved password named pw_name."""
@@ -141,10 +142,7 @@ def main():
         (b"Administrator Password:", cp_pw + "\r"),
     ]
     # answered every time they appear (e.g. vsx_util reconfigure)
-    always = [
-        (b"Enter Activation Key:", sic_key + "\r"),
-        (b"Retype Activation Key:", sic_key + "\r"),
-    ]
+    always = [(re.compile(rb"Activation Key: ?$", re.I), sic_key + "\r")]
 
     client = connect(a.host, a.user, a.port)
     cols, rows = shutil.get_terminal_size()
@@ -217,7 +215,7 @@ def main():
                 buf, line = b"", b""
             else:
                 for prompt, reply in always:
-                    if prompt in buf:
+                    if prompt.search(SEQ.sub(b"", buf)):
                         chan.send(reply)
                         buf, line = b"", b""
                         break

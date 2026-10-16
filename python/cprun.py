@@ -15,7 +15,7 @@ then deleted - so ; | && loops and so on all work inside it.
 
 Answered for you:
     Enter expert password:            Gaia admin password (EXPERT_PW if saved)
-    Enter / Retype Activation Key:    saved SIC key
+    ... Activation Key:               saved SIC key (Enter / Enter new / Retype / Confirm)
     vsx_util login prompts            localhost, cpadmin, cpadmin password
 Everything else (menus, y/n) is yours. When the command finishes and the
 shell prompt comes back, the session closes - just like vsx.py.
@@ -23,7 +23,7 @@ shell prompt comes back, the session closes - just like vsx.py.
 import argparse, base64, re, shlex, shutil, socket, sys, threading
 
 from labcreds import load, secret
-from termclean import Cleaner
+from termclean import SEQ, Cleaner
 from vsx import connect, pump_keys, raw_mode, restore
 
 # Gaia prompts: clish "A-GW-01> " and expert "[Expert@A-GW-01:0]# "
@@ -86,8 +86,10 @@ def main():
         once = [(b"localhost", lambda: "\r"),
                 (b"Administrator Name:", lambda: a.cpuser + "\r"),
                 (b"Administrator Password:", lambda: cp_pw() + "\r")]
-    always = [(b"Enter Activation Key:", lambda: sic_key() + "\r"),
-              (b"Retype Activation Key:", lambda: sic_key() + "\r")]
+    # any prompt ending in "Activation Key:" - cpconfig's "Enter/Retype ...",
+    # reset_gw's "Enter new ...", etc. Only at the end of the output, so a
+    # status line that merely mentions the key is not answered.
+    always = [(re.compile(rb"Activation Key: ?$", re.I), lambda: sic_key() + "\r")]
 
     client = connect(a.host, a.user, a.port)
     cols, rows = shutil.get_terminal_size()
@@ -158,7 +160,7 @@ def main():
                 tail = b""
                 continue
             for text, reply in always:
-                if text in tail:
+                if text.search(SEQ.sub(b"", tail)):
                     chan.send(reply())
                     tail = b""
                     break
