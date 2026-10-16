@@ -74,6 +74,8 @@ cprun 10.1.1.2 -f check.sh a b # upload check.sh, run it in Expert mode (args a 
 
 ubrun 192.168.13.101 sudo apt update   # Ubuntu: sudo password typed for you
 ubrun 192.168.13.101                   # just log in as cpadmin
+ubrun 192.168.13.101 -f setup.sh       # upload a script, run it (sudo inside answered)
+ubrun 192.168.13.101 -c "ps aux | grep nginx; uptime"   # one string, sent as typed
 
 lab-creds show                 # which passwords are saved
 lab-creds set                  # change them
@@ -100,9 +102,15 @@ the script too.
 
 `ubrun` is for ordinary Linux servers (not Check Point). It logs in as
 `cpadmin` with the saved cpadmin password (`--user` / `--pw CP_PW` to change),
-runs the command, answers `[sudo] password for ...:` with the same password
-(at most twice, so a wrong one doesn't loop), and closes when the prompt
-returns.
+runs the command, answers sudo's password prompt with the same password
+(classic `[sudo] password for ...:` and sudo-rs `[sudo: authenticate] Password:`,
+the default from Ubuntu 25.10; at most twice, so a wrong one doesn't loop),
+and closes when the prompt returns. It also works with no console window
+(called from another program). `-f script.sh` and `-c "..."` work as for `cprun`.
+
+`-c "..."` (`cprun` and `ubrun`) sends one command string exactly as written, so
+`;`, `|` and `&&` reach the remote shell. Quote it: from cmd.exe or PowerShell an
+unquoted `|` is taken by the local shell.
 
 `vsx-prov` takes one transaction per line (see `examples/a-app-gw.txt`) and runs
 `vsx_provisioning_tool -s localhost -u cpadmin -p ... -o <lines joined with ", ">`.

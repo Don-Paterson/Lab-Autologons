@@ -7,6 +7,7 @@ and answer the password / Activation Key prompts along the way.
     py cprun.py 10.1.1.101 vsx_util vsls  (vsx_util login prompts answered too)
     py cprun.py 10.1.1.2                 just log in (to Expert) and hand over
     py cprun.py 10.1.1.2 -f check.sh a b upload check.sh, run it with bash (args a b)
+    py cprun.py 10.1.1.2 -c "fw stat; cphaprob state | head"   one string, sent as typed
 
 With -f the script is sent through the SSH session (no SCP needed, works when
 admin's shell is clish), saved to a temp file, run with bash in Expert mode,
@@ -32,6 +33,7 @@ def main():
     ap = argparse.ArgumentParser(description="Run a command on a Gaia box with auto-answered prompts.")
     ap.add_argument("host")
     ap.add_argument("-f", "--file", help="local bash script to upload and run")
+    ap.add_argument("-c", dest="raw", help="command line sent exactly as written (; | && allowed)")
     ap.add_argument("command", nargs=argparse.REMAINDER,
                     help="command to run in Expert mode (with -f: arguments for the script)")
     ap.add_argument("--user", default="admin", help="SSH user (Gaia)")
@@ -40,13 +42,15 @@ def main():
     a = ap.parse_args()
     # Options typed after the host ("cprun 10.1.1.2 -f x.sh") land in the
     # command; take them back while they lead it.
-    opts = {"-f": ("file", str), "--file": ("file", str), "--port": ("port", int),
+    opts = {"-f": ("file", str), "--file": ("file", str), "-c": ("raw", str), "--port": ("port", int),
             "--user": ("user", str), "--cpuser": ("cpuser", str)}
     while len(a.command) >= 2 and a.command[0] in opts:
         name, conv = opts[a.command.pop(0)]
         setattr(a, name, conv(a.command.pop(0)))
 
     cmd = shlex.join(a.command) if a.command else ""
+    if a.raw:
+        cmd = a.raw
     upload = None
     if a.file:
         with open(a.file, "rb") as f:
