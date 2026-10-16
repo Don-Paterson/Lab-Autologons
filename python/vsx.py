@@ -16,6 +16,7 @@ import argparse, os, shlex, shutil, socket, sys, threading, time
 import paramiko
 
 from labcreds import load, secret
+from termclean import Cleaner
 
 def connect(host, user, port, pw_name="SMS_SSH_PW"):
     """SSH key first, then the saved password named pw_name."""
@@ -103,6 +104,7 @@ def main():
     ap.add_argument("--host", default="10.1.1.101")
     ap.add_argument("--user", default="admin", help="SSH user (Gaia)")
     ap.add_argument("--port", type=int, default=22)
+    ap.add_argument("--plain", action="store_true", help="strip colours and terminal codes from the output (default when output is not a console)")
     ap.add_argument("--cpuser", default="cpadmin", help="management admin")
     a = ap.parse_args()
     if not a.command:
@@ -134,6 +136,7 @@ def main():
     saved = raw_mode()
     threading.Thread(target=pump_keys, args=(chan,), daemon=True).start()
     out = sys.stdout.buffer
+    clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     buf = b""
     try:
         while True:
@@ -146,7 +149,7 @@ def main():
                 continue
             if not data:
                 break
-            out.write(data)
+            out.write(clean(data) if clean else data)
             out.flush()
             buf = (buf + data)[-512:]
             if answers and answers[0][0] in buf:

@@ -108,6 +108,12 @@ the default from Ubuntu 25.10; at most twice, so a wrong one doesn't loop),
 and closes when the prompt returns. It also works with no console window
 (called from another program). `-f script.sh` and `-c "..."` work as for `cprun`.
 
+`--plain` (`ubrun`, `cprun`, `vsx`) strips colours and terminal control codes
+(window titles, `]3008;...` context markers, bracketed-paste switches) and turns
+`\r\n` into plain line breaks. It is on automatically when the output is not a
+console, e.g. when another program or an agent runs the command; prompts are
+still answered the same way.
+
 `-c "..."` (`cprun` and `ubrun`) sends one command string exactly as written, so
 `;`, `|` and `&&` reach the remote shell. Quote it: from cmd.exe or PowerShell an
 unquoted `|` is taken by the local shell.
@@ -138,5 +144,6 @@ If SmartConsole is run as administrator, `SicFill.ahk` must be too.
 | `sms/vsxu` | Same prompt answering, run **on** the SMS: `read -rs CP_PW; export CP_PW; ~/vsxu vsls` |
 | `teraterm/vsx_login.ttl` | Tera Term macro that waits for the `vsx_util` prompts |
 | `python/labcreds.py` | Credential Manager helper used by everything above |
+| `python/termclean.py` | Strips terminal codes for `--plain` output |
 
 Lab use: passwords are stored per Windows user, encrypted by Windows.

@@ -19,10 +19,9 @@ from a temp file, then deleted.
 import argparse, base64, re, shlex, shutil, socket, sys, threading
 
 from labcreds import load, secret
+from termclean import SEQ as ANSI, Cleaner
 from vsx import connect, pump_keys, raw_mode, restore
 
-# Colour codes, window titles and bracketed-paste markers around the prompt
-ANSI = re.compile(rb"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
 # user@host:~/dir$  or  root@host:/# (as Ubuntu's default prompt)
 PROMPT = re.compile(rb"[\w.-]+@[\w.-]+:[^\r\n]*[$#] $")
 # "[sudo] password for cpadmin: "  or  "[sudo: authenticate] Password: "
@@ -38,13 +37,19 @@ def main():
     ap.add_argument("-f", "--file", help="local bash script to upload and run")
     ap.add_argument("--user", default="cpadmin", help="SSH user (default cpadmin)")
     ap.add_argument("--port", type=int, default=22)
+    ap.add_argument("--plain", action="store_true", help="strip colours and terminal codes from the output (default when output is not a console)")
     ap.add_argument("--pw", default="CP_PW",
                     help="saved password to use (default CP_PW, the cpadmin password)")
     a = ap.parse_args()
     # Options typed after the host land in the command; take them back.
     opts = {"-c": ("raw", str), "-f": ("file", str), "--file": ("file", str),
             "--user": ("user", str), "--port": ("port", int), "--pw": ("pw", str)}
-    while len(a.command) >= 2 and a.command[0] in opts:
+    while a.command and (a.command[0] == "--plain" or
+                         (len(a.command) >= 2 and a.command[0] in opts)):
+        if a.command[0] == "--plain":
+            a.command.pop(0)
+            a.plain = True
+            continue
         name, conv = opts[a.command.pop(0)]
         setattr(a, name, conv(a.command.pop(0)))
 
@@ -69,6 +74,7 @@ def main():
     saved = raw_mode()
     threading.Thread(target=pump_keys, args=(chan,), daemon=True).start()
     out = sys.stdout.buffer
+    clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     state, tail, sudo_tries = "login", b"", 0
     try:
         while True:
@@ -81,7 +87,7 @@ def main():
                 continue
             if not data:
                 break
-            out.write(data)
+            out.write(clean(data) if clean else data)
             out.flush()
             tail = (tail + data)[-2048:]
             plain = ANSI.sub(b"", tail)
