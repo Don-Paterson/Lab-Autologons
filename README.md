@@ -11,6 +11,7 @@ lab Windows machine with one command.
 | `vsx_util` (any command) | SMS IP (localhost), `cpadmin`, password, Activation Key |
 | `vsx_provisioning_tool` | password (`-p`), from a command file |
 | `cpconfig` on a gateway (SIC reset) | expert password, Activation Key + Retype |
+| Ubuntu / Linux servers (`ubrun`) | SSH login as cpadmin, `sudo` password |
 | MobaXterm / Tera Term | hotkeys for password, SIC key and `vsx_util` login |
 
 ## Deploy to a new lab machine
@@ -28,7 +29,7 @@ password). The script then:
 1. Downloads this repo to `C:\LabAutologons`
 2. Installs Python 3.13 (if missing) plus `paramiko` and `pywin32-ctypes`
 3. Installs AutoHotkey v2 (if missing; falls back to the portable zip)
-4. Adds `C:\LabAutologons\bin` to PATH: `vsx`, `vsx-prov`, `cprun`, `lab-creds`
+4. Adds `C:\LabAutologons\bin` to PATH: `vsx`, `vsx-prov`, `cprun`, `ubrun`, `lab-creds`
 5. Saves the passwords in **Windows Credential Manager**
 6. Starts `SicFill.ahk` now and adds it to Startup
 
@@ -70,6 +71,9 @@ vsx-prov -y -f my-vs.txt       # no "Run this?" confirmation
 cprun 10.1.1.2 cpconfig        # reset SIC on a gateway (you pick the menu option)
 cprun 10.1.1.2                 # just log in, straight to Expert mode
 
+ubrun 192.168.13.101 sudo apt update   # Ubuntu: sudo password typed for you
+ubrun 192.168.13.101                   # just log in as cpadmin
+
 lab-creds show                 # which passwords are saved
 lab-creds set                  # change them
 lab-creds clear                # remove them
@@ -85,6 +89,12 @@ types `expert` and the expert password (the saved Gaia password, or
 command, answers `Enter/Retype Activation Key` with the saved SIC key (and the
 `vsx_util` login prompts, if the command is `vsx_util`), and closes when the
 command finishes. Menus and y/n questions are left to you.
+
+`ubrun` is for ordinary Linux servers (not Check Point). It logs in as
+`cpadmin` with the saved cpadmin password (`--user` / `--pw CP_PW` to change),
+runs the command, answers `[sudo] password for ...:` with the same password
+(at most twice, so a wrong one doesn't loop), and closes when the prompt
+returns.
 
 `vsx-prov` takes one transaction per line (see `examples/a-app-gw.txt`) and runs
 `vsx_provisioning_tool -s localhost -u cpadmin -p ... -o <lines joined with ", ">`.

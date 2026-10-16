@@ -18,7 +18,7 @@
     1. Downloads this repo to C:\LabAutologons
     2. Installs Python 3.13 (if missing) and the Python packages
     3. Installs AutoHotkey v2 (if missing)
-    4. Puts C:\LabAutologons\bin on PATH  (vsx, vsx-prov, cprun, lab-creds commands)
+    4. Puts C:\LabAutologons\bin on PATH  (vsx, vsx-prov, cprun, ubrun, lab-creds commands)
     5. Saves the lab passwords in Windows Credential Manager
     6. Starts SicFill.ahk now and at every logon
 #>
@@ -147,7 +147,7 @@ param(
         Ok 'Already on PATH'
     } else {
         [Environment]::SetEnvironmentVariable('Path', "$machinePath;$bin", 'Machine')
-        Ok 'Added (new windows will have vsx, vsx-prov, cprun and lab-creds)'
+        Ok 'Added (new windows will have vsx, vsx-prov, cprun, ubrun and lab-creds)'
     }
     Update-SessionPath
 
@@ -188,6 +188,7 @@ param(
       vsx reconfigure                          ... also fills the Activation Key
       vsx-prov -f $InstallDir\examples\a-app-gw.txt
       cprun 10.1.1.2 cpconfig                  reset SIC on a gateway
+      ubrun 192.168.13.101 sudo apt update     Ubuntu server, sudo answered
       lab-creds show | set | clear             manage the saved passwords
 
     SmartConsole: SIC key and login password fill in automatically.

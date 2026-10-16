@@ -17,7 +17,8 @@ import paramiko
 
 from labcreds import load, secret
 
-def connect(host, user, port):
+def connect(host, user, port, pw_name="SMS_SSH_PW"):
+    """SSH key first, then the saved password named pw_name."""
     def client():
         c = paramiko.SSHClient()
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -28,10 +29,18 @@ def connect(host, user, port):
         return c
     except paramiko.SSHException:      # no key, or key not accepted
         c.close()
+    except OSError as e:               # host down, wrong IP, port closed
+        sys.exit(f"Could not connect to {host}:{port}: {e}")
     c = client()
-    c.connect(host, port=port, username=user, timeout=10,
-              password=secret("SMS_SSH_PW", f"{user}@{host} SSH password: "),
-              look_for_keys=False, allow_agent=False)
+    try:
+        c.connect(host, port=port, username=user, timeout=10,
+                  password=secret(pw_name, f"{user}@{host} SSH password: "),
+                  look_for_keys=False, allow_agent=False)
+    except paramiko.AuthenticationException:
+        sys.exit(f"Login failed for {user}@{host}: wrong user or password.\n"
+                 f"Check --user, or the saved password (lab-creds show / lab-creds set).")
+    except (OSError, paramiko.SSHException) as e:
+        sys.exit(f"Could not connect to {host}:{port}: {e}")
     return c
 
 
