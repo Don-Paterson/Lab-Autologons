@@ -6,6 +6,11 @@ and answer the password / Activation Key prompts along the way.
     py cprun.py 10.1.1.2 cpconfig        reset SIC: pick the menu option, keys are typed
     py cprun.py 10.1.1.101 vsx_util vsls  (vsx_util login prompts answered too)
     py cprun.py 10.1.1.2                 just log in (to Expert) and hand over
+    py cprun.py 10.1.1.2 -f check.sh a b upload check.sh, run it with bash (args a b)
+
+With -f the script is sent through the SSH session (no SCP needed, works when
+admin's shell is clish), saved to a temp file, run with bash in Expert mode,
+then deleted - so ; | && loops and so on all work inside it.
 
 Answered for you:
     Enter expert password:            Gaia admin password (EXPERT_PW if saved)
@@ -14,7 +19,7 @@ Answered for you:
 Everything else (menus, y/n) is yours. When the command finishes and the
 shell prompt comes back, the session closes - just like vsx.py.
 """
-import argparse, re, shlex, shutil, socket, sys, threading
+import argparse, base64, re, shlex, shutil, socket, sys, threading
 
 from labcreds import load, secret
 from vsx import connect, pump_keys, raw_mode, restore
@@ -26,13 +31,29 @@ PROMPT = re.compile(rb"(\[Expert@[^\]\r\n]+\]# |[\w.-]+> )$")
 def main():
     ap = argparse.ArgumentParser(description="Run a command on a Gaia box with auto-answered prompts.")
     ap.add_argument("host")
-    ap.add_argument("command", nargs=argparse.REMAINDER, help="command to run in Expert mode")
+    ap.add_argument("-f", "--file", help="local bash script to upload and run")
+    ap.add_argument("command", nargs=argparse.REMAINDER,
+                    help="command to run in Expert mode (with -f: arguments for the script)")
     ap.add_argument("--user", default="admin", help="SSH user (Gaia)")
     ap.add_argument("--port", type=int, default=22)
     ap.add_argument("--cpuser", default="cpadmin", help="management admin (vsx_util)")
     a = ap.parse_args()
+    # Options typed after the host ("cprun 10.1.1.2 -f x.sh") land in the
+    # command; take them back while they lead it.
+    opts = {"-f": ("file", str), "--file": ("file", str), "--port": ("port", int),
+            "--user": ("user", str), "--cpuser": ("cpuser", str)}
+    while len(a.command) >= 2 and a.command[0] in opts:
+        name, conv = opts[a.command.pop(0)]
+        setattr(a, name, conv(a.command.pop(0)))
 
     cmd = shlex.join(a.command) if a.command else ""
+    upload = None
+    if a.file:
+        with open(a.file, "rb") as f:
+            body = f.read().replace(b"\r\n", b"\n")      # Windows line endings break bash
+        upload = base64.encodebytes(body).decode()          # 76-char lines
+        # $f is set on the box by the upload line below
+        cmd = 'bash "$f"' + (" " + shlex.join(a.command) if a.command else "") + '; rm -f "$f"'
     cache = {}
 
     def sic_key():
@@ -96,11 +117,28 @@ def main():
                     continue
                 prompt = m.group(1)                      # at the Expert prompt
                 tail = b""
+                if upload:
+                    # temp file, echo off, marker, then base64 -d reads what we send
+                    chan.send('f=$(mktemp /tmp/cprun.XXXXXX); stty -echo; '
+                              'printf "CPRUN%sREADY\\n" _; base64 -d > "$f"; stty echo\r')
+                    state = "upload"
+                    continue
                 if cmd:
                     chan.send(cmd + "\r")
                     state = "cmd"
                 else:
                     state = "interactive"
+                continue
+
+            if state == "upload":
+                if b"CPRUN_READY" in tail:               # base64 -d is now reading
+                    chan.sendall(upload + "\x04")          # data, then Ctrl+D (end of file)
+                    state, tail = "uploaded", b""
+                continue
+            if state == "uploaded":                      # prompt back: file is on the box
+                if tail.endswith(prompt):
+                    chan.send(cmd + "\r")
+                    state, tail = "cmd", b""
                 continue
 
             if once and once[0][0] in tail:

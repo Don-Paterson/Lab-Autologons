@@ -70,6 +70,7 @@ vsx-prov -y -f my-vs.txt       # no "Run this?" confirmation
 
 cprun 10.1.1.2 cpconfig        # reset SIC on a gateway (you pick the menu option)
 cprun 10.1.1.2                 # just log in, straight to Expert mode
+cprun 10.1.1.2 -f check.sh a b # upload check.sh, run it in Expert mode (args a b)
 
 ubrun 192.168.13.101 sudo apt update   # Ubuntu: sudo password typed for you
 ubrun 192.168.13.101                   # just log in as cpadmin
@@ -89,6 +90,13 @@ types `expert` and the expert password (the saved Gaia password, or
 command, answers `Enter/Retype Activation Key` with the saved SIC key (and the
 `vsx_util` login prompts, if the command is `vsx_util`), and closes when the
 command finishes. Menus and y/n questions are left to you.
+
+`cprun <host> -f script.sh [args]` uploads a local bash script through the same
+session (no SCP, so it works when `admin`'s shell is clish), saves it to a temp
+file, runs it with `bash` in Expert mode and deletes it. Use it for anything a
+single command can't do: `;`, pipes, `&&`, loops, variables. Windows line
+endings are fixed on the way. The Activation Key prompts are answered inside
+the script too.
 
 `ubrun` is for ordinary Linux servers (not Check Point). It logs in as
 `cpadmin` with the saved cpadmin password (`--user` / `--pw CP_PW` to change),
