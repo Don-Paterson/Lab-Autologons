@@ -64,6 +64,7 @@ Open a **new** PowerShell window after deploying (so PATH is refreshed).
 vsx show_interfaces            # vsx_util on A-SMS, login answered for you
 vsx reconfigure                # ... and the Activation Key prompts too
 vsx vsls --host 10.1.1.101     # other SMS
+vsx vsls --keys "1,1,8"        # non-interactive: answers vsx_util's prompts in order
 
 vsx-prov -f C:\LabAutologons\examples\a-app-gw.txt
 vsx-prov -y -f my-vs.txt       # no "Run this?" confirmation
@@ -85,6 +86,13 @@ lab-creds clear                # remove them
 `vsx` connects over SSH as `admin` (SSH key if you have one, otherwise the
 saved Gaia password), runs `vsx_util`, answers the login prompts, then hands
 the session to you. The output looks the same as typing it by hand.
+
+Non-interactive (scripts, agents): `--keys "1,1,8"` answers `vsx_util`'s own
+prompts in order (object number, menu choices, y/n) after the login prompts it
+already handles; lines piped on stdin are used the same way. An answer is sent
+when `vsx_util` goes quiet with an unfinished line on screen (`Select: `). If it
+is still waiting and no answer is left, `vsx` gives up after `--wait` seconds
+(default 20) with exit code 3 and names the prompt, instead of hanging.
 
 `cprun` works on any Gaia box. It logs in as `admin`; if that lands in clish it
 types `expert` and the expert password (the saved Gaia password, or
