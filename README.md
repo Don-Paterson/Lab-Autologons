@@ -95,13 +95,16 @@ when `vsx_util` goes quiet with an unfinished line on screen (`Select: `). If it
 is still waiting and no answer is left, `vsx` gives up after `--wait` seconds
 (default 20) with exit code 3 and names the prompt, instead of hanging.
 
-`cprun` works on any Gaia box. It logs in as `admin`; if that lands in clish it
-types `expert` and the expert password (the saved Gaia password, or
+`cprun` works on any Gaia box, including VSNext / ElasticXL clusters (clish prompt
+`[Global] A-Elastic-Cluster-s01-01:0>`). It logs in as `admin`; if that lands in
+clish it types `expert` and the expert password (the saved Gaia password, or
 `Lab-Autologons:EXPERT_PW` if you save one with that name). It then runs the
 command, answers any prompt ending in `Activation Key:` (cpconfig's
 `Enter/Retype`, reset_gw's `Enter new`) with the saved SIC key (and the
 `vsx_util` login prompts, if the command is `vsx_util`), and closes when the
-command finishes. Menus and y/n questions are left to you.
+command finishes. Menus and y/n questions are left to you. If `expert` is
+refused (wrong expert password, or none set: `set expert-password` in clish),
+it stops with exit code 4 instead of waiting.
 
 `cprun <host> -f script.sh [args]` uploads a local bash script through the same
 session (no SCP, so it works when `admin`'s shell is clish), saves it to a temp

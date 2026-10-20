@@ -26,8 +26,11 @@ from labcreds import load, secret
 from termclean import SEQ, Cleaner
 from vsx import connect, pump_keys, raw_mode, restore
 
-# Gaia prompts: clish "A-GW-01> " and expert "[Expert@A-GW-01:0]# "
-PROMPT = re.compile(rb"(\[Expert@[^\]\r\n]+\]# |[\w.-]+> )$")
+# Gaia prompts, matched on the output with terminal codes removed:
+#   expert  "[Expert@A-GW-01:0]# "
+#   clish   "A-GW-01> "   and VSNext / ElasticXL "[Global] A-Elastic-Cluster-s01-01:0> "
+EXPERT = re.compile(rb"\[Expert@[^\]\r\n]+\]# ?$")
+CLISH = re.compile(rb"(?:^|[\r\n])(?:\[[^\]\r\n]+\] )?[\w.-]+(?::\d+)?> ?$")
 
 
 def main():
@@ -99,7 +102,7 @@ def main():
     threading.Thread(target=pump_keys, args=(chan,), daemon=True).start()
     out = sys.stdout.buffer
     clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
-    state, tail, prompt, sent_expert = "login", b"", None, False
+    state, tail, prompt, sent_expert, failed = "login", b"", None, False, False
     try:
         while True:
             try:
@@ -116,20 +119,24 @@ def main():
             tail = (tail + data)[-2048:]
 
             if state == "login":
-                if b"Enter expert password:" in tail:
+                plain = SEQ.sub(b"", tail)
+                if b"Enter expert password:" in plain:
                     chan.send(expert_pw() + "\r")
                     tail = b""
                     continue
-                m = PROMPT.search(tail)
-                if not m:
-                    continue
-                if m.group(1).endswith(b"> "):          # clish -> expert
-                    if sent_expert:
-                        continue
+                m = EXPERT.search(plain)
+                if not m and CLISH.search(plain):       # clish -> expert
+                    if sent_expert:                      # back at clish: refused
+                        sys.stderr.write("\ncprun: 'expert' did not open Expert mode - wrong expert "
+                                         "password, or none set (clish: set expert-password)\n")
+                        failed = True
+                        break
                     chan.send("expert\r")
                     sent_expert, tail = True, b""
                     continue
-                prompt = m.group(1)                      # at the Expert prompt
+                if not m:
+                    continue
+                prompt = m.group(0).rstrip()             # at the Expert prompt
                 tail = b""
                 if upload:
                     # temp file, echo off, marker, then base64 -d reads what we send
@@ -150,7 +157,7 @@ def main():
                     state, tail = "uploaded", b""
                 continue
             if state == "uploaded":                      # prompt back: file is on the box
-                if tail.endswith(prompt):
+                if SEQ.sub(b"", tail).rstrip().endswith(prompt):
                     chan.send(cmd + "\r")
                     state, tail = "cmd", b""
                 continue
@@ -166,12 +173,14 @@ def main():
                     break
             else:
                 # command finished: its shell prompt is back
-                if state == "cmd" and tail.endswith(prompt):
+                if state == "cmd" and SEQ.sub(b"", tail).rstrip().endswith(prompt):
                     break
     finally:
         restore(saved)
         client.close()
     print()
+    if failed:
+        sys.exit(4)
 
 
 if __name__ == "__main__":
