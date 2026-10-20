@@ -33,6 +33,19 @@ EXPERT = re.compile(rb"\[Expert@[^\]\r\n]+\]# ?$")
 CLISH = re.compile(rb"(?:^|[\r\n])(?:\[[^\]\r\n]+\] )?[\w.-]+(?::\d+)?> ?$")
 
 
+def type_answer(chan, text):
+    """Type an answer like a person: one character at a time, then Enter on
+    its own. VSNext's password reader treats each burst of input as a single
+    keystroke, so an Enter sent in the same burst as the password is not seen
+    (the login only finished when Enter was pressed again by hand)."""
+    body = text[:-1] if text.endswith("\r") else text
+    for ch in body:
+        chan.send(ch)
+        time.sleep(0.03)
+    time.sleep(0.3)
+    chan.send("\r")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Run a command on a Gaia box with auto-answered prompts.")
     ap.add_argument("host")
@@ -119,7 +132,7 @@ def main():
             except socket.timeout:
                 idle = time.monotonic() - last_rx
                 if pw_wait and idle > PW_DELAY and pw_tries < 2:
-                    chan.send(expert_pw() + "\r")
+                    type_answer(chan, expert_pw())
                     pw_tries += 1
                     pw_sent_at = time.monotonic()
                     pw_wait, tail = False, b""   # forget this prompt: answered
@@ -154,7 +167,7 @@ def main():
                                          "password, or none set (clish: set expert-password)\n")
                         failed = True
                         break
-                    chan.send("expert\r")
+                    type_answer(chan, "expert")
                     sent_expert, tail = True, b""
                     continue
                 if not m:
@@ -186,12 +199,12 @@ def main():
                 continue
 
             if once and once[0][0] in tail:
-                chan.send(once.pop(0)[1]())
+                type_answer(chan, once.pop(0)[1]())
                 tail = b""
                 continue
             for text, reply in always:
                 if text.search(SEQ.sub(b"", tail)):
-                    chan.send(reply())
+                    type_answer(chan, reply())
                     tail = b""
                     break
             else:
