@@ -103,14 +103,13 @@ def main():
     out = sys.stdout.buffer
     clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     state, tail, prompt, sent_expert, failed = "login", b"", None, False, False
-    # The expert password is typed once the prompt has been quiet for 1.5s:
-    # VSNext discards input that arrives before it starts reading, and when it
-    # starts varies. After typing, ANY output (even the echoed line break)
-    # means it was taken, and it is never retyped. Only if the gateway shows
-    # nothing at all for 15s is it assumed lost and typed again - long after a
-    # normal login (a few seconds), so it can't land at the Expert prompt.
-    # A new "Enter expert password:" (wrong password) is answered as before.
-    PW_DELAY, PW_LOST_AFTER = 1.5, 15
+    # The expert password is typed ONCE, after the prompt has been quiet for
+    # 1.5s (an instant answer can arrive before the gateway reads it). It is
+    # never retyped on a timer: a VSNext cluster can take well over 15s to
+    # open Expert mode while showing nothing, and a retyped password then
+    # lands at the Expert prompt. It is typed again only if the gateway
+    # prints "Enter expert password:" again (wrong password), at most twice.
+    PW_DELAY, PW_NOTICE_AFTER = 1.5, 20
     pw_wait, pw_tries, pw_sent_at, last_rx = False, 0, None, time.monotonic()
     chan.settimeout(0.2)
     try:
@@ -119,13 +118,17 @@ def main():
                 data = chan.recv(4096)
             except socket.timeout:
                 idle = time.monotonic() - last_rx
-                lost = (pw_sent_at is not None and last_rx < pw_sent_at
-                        and time.monotonic() - pw_sent_at > PW_LOST_AFTER)
-                if ((pw_wait and idle > PW_DELAY) or lost) and pw_tries < 3:
+                if pw_wait and idle > PW_DELAY and pw_tries < 2:
                     chan.send(expert_pw() + "\r")
                     pw_tries += 1
                     pw_sent_at = time.monotonic()
                     pw_wait, tail = False, b""   # forget this prompt: answered
+                elif (pw_sent_at is not None and last_rx < pw_sent_at
+                        and time.monotonic() - pw_sent_at > PW_NOTICE_AFTER):
+                    # say what's happening, but type nothing more
+                    sys.stderr.write("\ncprun: expert password sent; still waiting for the "
+                                     "gateway (VSNext can be slow). Not retyping it.\n")
+                    pw_sent_at = None
                 continue
             except KeyboardInterrupt:          # Ctrl+C -> remote side
                 chan.send("\x03")
