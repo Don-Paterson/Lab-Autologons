@@ -104,10 +104,11 @@ def main():
     clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     state, tail, prompt, sent_expert, failed = "login", b"", None, False, False
     # The expert password is typed only once the prompt has been quiet for a
-    # moment: a password prompt may discard input that arrives before it starts
-    # reading, so an instant answer can be lost. If the prompt is still there a
-    # few seconds later, it is typed once more.
-    pw_wait, pw_sent_at, pw_tries, last_rx = False, None, 0, time.monotonic()
+    # moment: VSNext discards input that arrives before it starts reading, so
+    # an instant answer is lost. It is typed again only if the gateway shows
+    # the prompt again (after a wrong password) - never on a timer, because
+    # opening Expert mode can take several seconds.
+    pw_wait, pw_tries, last_rx = False, 0, time.monotonic()
     chan.settimeout(0.2)
     try:
         while True:
@@ -115,10 +116,10 @@ def main():
                 data = chan.recv(4096)
             except socket.timeout:
                 idle = time.monotonic() - last_rx
-                if pw_wait and idle > 0.5 and pw_tries < 2 and (
-                        pw_sent_at is None or time.monotonic() - pw_sent_at > 5):
+                if pw_wait and idle > 0.5 and pw_tries < 2:
                     chan.send(expert_pw() + "\r")
-                    pw_sent_at, pw_tries = time.monotonic(), pw_tries + 1
+                    pw_tries += 1
+                    pw_wait, tail = False, b""   # forget this prompt: answered
                 continue
             except KeyboardInterrupt:          # Ctrl+C -> remote side
                 chan.send("\x03")
