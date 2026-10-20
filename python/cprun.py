@@ -103,12 +103,15 @@ def main():
     out = sys.stdout.buffer
     clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     state, tail, prompt, sent_expert, failed = "login", b"", None, False, False
-    # The expert password is typed only once the prompt has been quiet for a
-    # moment: VSNext discards input that arrives before it starts reading, so
-    # an instant answer is lost. It is typed again only if the gateway shows
-    # the prompt again (after a wrong password) - never on a timer, because
-    # opening Expert mode can take several seconds.
-    pw_wait, pw_tries, last_rx = False, 0, time.monotonic()
+    # The expert password is typed once the prompt has been quiet for 1.5s:
+    # VSNext discards input that arrives before it starts reading, and when it
+    # starts varies. After typing, ANY output (even the echoed line break)
+    # means it was taken, and it is never retyped. Only if the gateway shows
+    # nothing at all for 15s is it assumed lost and typed again - long after a
+    # normal login (a few seconds), so it can't land at the Expert prompt.
+    # A new "Enter expert password:" (wrong password) is answered as before.
+    PW_DELAY, PW_LOST_AFTER = 1.5, 15
+    pw_wait, pw_tries, pw_sent_at, last_rx = False, 0, None, time.monotonic()
     chan.settimeout(0.2)
     try:
         while True:
@@ -116,9 +119,12 @@ def main():
                 data = chan.recv(4096)
             except socket.timeout:
                 idle = time.monotonic() - last_rx
-                if pw_wait and idle > 0.5 and pw_tries < 2:
+                lost = (pw_sent_at is not None and last_rx < pw_sent_at
+                        and time.monotonic() - pw_sent_at > PW_LOST_AFTER)
+                if ((pw_wait and idle > PW_DELAY) or lost) and pw_tries < 3:
                     chan.send(expert_pw() + "\r")
                     pw_tries += 1
+                    pw_sent_at = time.monotonic()
                     pw_wait, tail = False, b""   # forget this prompt: answered
                 continue
             except KeyboardInterrupt:          # Ctrl+C -> remote side
@@ -129,6 +135,7 @@ def main():
             out.write(clean(data) if clean else data)
             out.flush()
             last_rx = time.monotonic()
+            pw_sent_at = None                    # output after the password: it was taken
             tail = (tail + data)[-2048:]
 
             if state == "login":
