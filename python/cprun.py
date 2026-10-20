@@ -20,7 +20,7 @@ Answered for you:
 Everything else (menus, y/n) is yours. When the command finishes and the
 shell prompt comes back, the session closes - just like vsx.py.
 """
-import argparse, base64, re, shlex, shutil, socket, sys, threading
+import argparse, base64, re, shlex, shutil, socket, sys, threading, time
 
 from labcreds import load, secret
 from termclean import SEQ, Cleaner
@@ -103,11 +103,22 @@ def main():
     out = sys.stdout.buffer
     clean = Cleaner() if (a.plain or not sys.stdout.isatty()) else None
     state, tail, prompt, sent_expert, failed = "login", b"", None, False, False
+    # The expert password is typed only once the prompt has been quiet for a
+    # moment: a password prompt may discard input that arrives before it starts
+    # reading, so an instant answer can be lost. If the prompt is still there a
+    # few seconds later, it is typed once more.
+    pw_wait, pw_sent_at, pw_tries, last_rx = False, None, 0, time.monotonic()
+    chan.settimeout(0.2)
     try:
         while True:
             try:
                 data = chan.recv(4096)
             except socket.timeout:
+                idle = time.monotonic() - last_rx
+                if pw_wait and idle > 0.5 and pw_tries < 2 and (
+                        pw_sent_at is None or time.monotonic() - pw_sent_at > 5):
+                    chan.send(expert_pw() + "\r")
+                    pw_sent_at, pw_tries = time.monotonic(), pw_tries + 1
                 continue
             except KeyboardInterrupt:          # Ctrl+C -> remote side
                 chan.send("\x03")
@@ -116,14 +127,15 @@ def main():
                 break
             out.write(clean(data) if clean else data)
             out.flush()
+            last_rx = time.monotonic()
             tail = (tail + data)[-2048:]
 
             if state == "login":
                 plain = SEQ.sub(b"", tail)
-                if b"Enter expert password:" in plain:
-                    chan.send(expert_pw() + "\r")
-                    tail = b""
+                if plain.rstrip().endswith(b"Enter expert password:"):
+                    pw_wait = True                   # answered from the timeout branch
                     continue
+                pw_wait = False                      # something else came: the prompt has gone
                 m = EXPERT.search(plain)
                 if not m and CLISH.search(plain):       # clish -> expert
                     if sent_expert:                      # back at clish: refused
