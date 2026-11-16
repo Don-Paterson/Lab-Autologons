@@ -12,7 +12,7 @@ lab Windows machine with one command.
 | `vsx_provisioning_tool` | password (`-p`), from a command file |
 | `cpconfig` / `reset_gw` on a gateway (SIC reset) | expert password, Activation Key + Retype |
 | Ubuntu / Linux servers (`ubrun`) | SSH login as cpadmin, `sudo` password |
-| MobaXterm / Tera Term | hotkeys for password, SIC key and `vsx_util` login |
+| Terminals (Windows Terminal / PowerShell, MobaXterm, Tera Term) | hotkeys: Gaia admin password (`ssh admin@...`), cpadmin password, SIC key, `vsx_util` login |
 
 ## Deploy to a new lab machine
 
@@ -145,8 +145,12 @@ Runs in the tray (green **H**). It reads the passwords from Credential Manager.
   fills when that label is showing and the box is usable, so existing objects
   (e.g. *Cluster Member Properties - A-VSX-02*) are left alone.
   **Ctrl+Alt+S** re-fills after **Reset**.
-* **MobaXterm / Tera Term**: **Ctrl+Alt+P** cpadmin password, **Ctrl+Alt+S**
-  SIC key, **Ctrl+Alt+V** answers the `vsx_util` login prompts.
+* **Terminals** (Windows Terminal, the PowerShell / cmd console, MobaXterm,
+  Tera Term): **Ctrl+Alt+A** Gaia admin password (at `ssh admin@10.1.1.101`'s
+  `password:` prompt), **Ctrl+Alt+P** cpadmin password, **Ctrl+Alt+S** SIC key,
+  **Ctrl+Alt+V** answers the `vsx_util` login prompts. Each types the text and
+  presses Enter; a password prompt shows nothing, exactly as when typed by hand,
+  so screen captures for students match the manual procedure.
 
 If SmartConsole is run as administrator, `SicFill.ahk` must be too.
 

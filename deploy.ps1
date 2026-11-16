@@ -192,7 +192,8 @@ param(
       lab-creds show | set | clear             manage the saved passwords
 
     SmartConsole: SIC key and login password fill in automatically.
-    MobaXterm / Tera Term: Ctrl+Alt+P password, Ctrl+Alt+S SIC key, Ctrl+Alt+V vsx_util login.
+    Terminals (PowerShell, Windows Terminal, MobaXterm, Tera Term): Ctrl+Alt+A Gaia admin
+    password (ssh admin@...), Ctrl+Alt+P cpadmin password, Ctrl+Alt+S SIC key, Ctrl+Alt+V vsx_util login.
 
 "@ -ForegroundColor Yellow
 }

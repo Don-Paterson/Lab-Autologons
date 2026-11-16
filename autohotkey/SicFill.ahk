@@ -10,7 +10,11 @@
 ;   - Ctrl+Alt+S  in MobaXterm    : type SIC key + Enter
 ;   - Ctrl+Alt+P  in MobaXterm    : type cpadmin password + Enter
 ;   - Ctrl+Alt+V  in MobaXterm    : answer vsx_util login (localhost, cpadmin, password)
-;   - Also works in Tera Term (ttermpro.exe) and fills the vsx_login.ttl password box
+;   - Ctrl+Alt+A  in a terminal     : type Gaia admin password + Enter (ssh admin@...)
+;   - Terminal hotkeys work in MobaXterm, Tera Term, Windows Terminal and the
+;     PowerShell / cmd console. Nothing is shown when typed, so screen
+;     captures look the same as typing the password by hand.
+;   - Fills the vsx_login.ttl (Tera Term macro) password box
 ; Passwords come from Windows Credential Manager (saved by deploy.ps1 /
 ; lab-creds set). If they are not there, they are asked for at startup.
 ; ---------------------------------------------------------------------------
@@ -29,6 +33,7 @@ CredReadPw(target) {
 
 AdminPw := CredReadPw("Lab-Autologons:CP_PW")
 SicKey  := CredReadPw("Lab-Autologons:SIC_KEY")
+GaiaPw  := CredReadPw("Lab-Autologons:SMS_SSH_PW")   ; Gaia admin (SSH) password
 if SicKey = ""
     SicKey := AdminPw
 
@@ -147,7 +152,9 @@ FillSic(hwnd, keyCtl, confCtl) {
 }
 #HotIf
 
-#HotIf WinActive("ahk_exe MobaXterm.exe") || WinActive("ahk_exe ttermpro.exe")
+; MobaXterm, Tera Term, Windows Terminal, and the classic PowerShell / cmd console
+#HotIf WinActive("ahk_exe MobaXterm.exe") || WinActive("ahk_exe ttermpro.exe") || WinActive("ahk_exe WindowsTerminal.exe") || WinActive("ahk_class ConsoleWindowClass")
+^!a:: TypeToTerminal(GaiaPw != "" ? GaiaPw : AdminPw)   ; ssh admin@... password
 ^!s:: TypeToTerminal(SicKey)
 ^!p:: TypeToTerminal(AdminPw)
 ^!v:: {   ; vsx_util login: localhost, cpadmin, password
